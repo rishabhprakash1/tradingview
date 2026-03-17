@@ -16,12 +16,12 @@
 import { useTrade, TRADE_STATUSES } from "./TradeContext";
 
 // ── Verified check icon (inline SVG) ────────────────────────────────────────
-function VerifiedIcon() {
+function VerifiedIcon({ color = "currentColor" }) {
   return (
     <svg
-      className="inline-block ml-1.5 h-4 w-4 text-white flex-shrink-0"
+      className="inline-block ml-1 h-3.5 w-3.5 flex-shrink-0"
       viewBox="0 0 24 24"
-      fill="currentColor"
+      fill={color}
       aria-label="Verified"
     >
       <path d="M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-.497 3.842 3.745 3.745 0 0 1-3.842.497A3.745 3.745 0 0 1 12 21a3.745 3.745 0 0 1-3.068-1.593 3.745 3.745 0 0 1-3.842-.497 3.745 3.745 0 0 1-.497-3.842A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 .497-3.842 3.745 3.745 0 0 1 3.842-.497A3.745 3.745 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.745 3.745 0 0 1 3.842.497 3.745 3.745 0 0 1 .497 3.842A3.745 3.745 0 0 1 21 12Z" />
@@ -60,11 +60,49 @@ function BlankChat() {
 function TradeBubble({ client, onAccept, onReject }) {
   const { stockName, units } = client.tradeDetails;
   const time = nowTime();
+  const status = client.status;
+
+  // Determine what to show in the bottom half of the bubble
+  let actionsContent;
+  if (status === TRADE_STATUSES.WAITING_FOR_USER) {
+    actionsContent = (
+      <div className="flex divide-x divide-[#E9EDEF]">
+        <button
+          onClick={() => onReject(client)}
+          className="flex-1 py-2.5 text-sm font-semibold text-[#E53935] hover:bg-red-50 active:bg-red-100 transition-colors"
+        >
+          Reject
+        </button>
+        <button
+          onClick={() => onAccept(client)}
+          className="flex-1 py-2.5 text-sm font-semibold text-[#075E54] hover:bg-green-50 active:bg-green-100 transition-colors"
+        >
+          Accept
+        </button>
+      </div>
+    );
+  } else if (status === TRADE_STATUSES.USER_CONFIRMED) {
+    actionsContent = (
+      <div className="py-2.5 px-3 flex items-center justify-center gap-1.5 bg-green-50/50">
+        <VerifiedIcon color="#075E54" />
+        <span className="text-sm font-medium text-[#075E54]">Broker has been notified</span>
+      </div>
+    );
+  } else if (status === TRADE_STATUSES.EXECUTED) {
+    actionsContent = (
+      <div className="py-2.5 px-3 flex items-center justify-center gap-1.5 bg-blue-50/50">
+        <svg className="h-4 w-4 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+        </svg>
+        <span className="text-sm font-medium text-blue-600">Trade Executed Successfully</span>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-start px-3 pt-3 gap-2">
       {/* Bubble */}
-      <div className="bg-white rounded-tr-2xl rounded-br-2xl rounded-bl-2xl shadow-sm max-w-[90%] overflow-hidden">
+      <div className="bg-white rounded-tr-2xl rounded-br-2xl rounded-bl-2xl shadow-sm max-w-[90%] w-[85%] overflow-hidden">
         {/* Message text */}
         <div className="px-3 pt-3 pb-1">
           {/* Sender label */}
@@ -82,27 +120,12 @@ function TradeBubble({ client, onAccept, onReject }) {
         {/* Divider */}
         <div className="border-t border-[#E9EDEF] mx-0" />
 
-        {/* Action buttons */}
-        <div className="flex divide-x divide-[#E9EDEF]">
-          <button
-            id={`reject-trade-${client.id}`}
-            onClick={onReject}
-            className="flex-1 py-2.5 text-sm font-semibold text-[#E53935] hover:bg-red-50 active:bg-red-100 transition-colors"
-          >
-            Reject
-          </button>
-          <button
-            id={`accept-trade-${client.id}`}
-            onClick={onAccept}
-            className="flex-1 py-2.5 text-sm font-semibold text-[#075E54] hover:bg-green-50 active:bg-green-100 transition-colors"
-          >
-            Accept
-          </button>
-        </div>
+        {/* Dynamic Action / Status Area */}
+        {actionsContent}
       </div>
 
       {/* Client info chip */}
-      <div className="flex items-center gap-1.5 ml-1">
+      <div className="flex items-center gap-1.5 ml-1 mb-2">
         <div className="h-5 w-5 rounded-full bg-[#075E54] flex items-center justify-center flex-shrink-0">
           <span className="text-[8px] font-bold text-white">
             {client.name.charAt(0)}
@@ -120,17 +143,19 @@ function TradeBubble({ client, onAccept, onReject }) {
 export default function WhatsAppSimulator() {
   const { clients, updateClientTrade } = useTrade();
 
-  // First client whose status is 'waiting_for_user'
-  const pendingClient = clients.find(
-    (c) => c.status === TRADE_STATUSES.WAITING_FOR_USER
-  ) ?? null;
+  // Find all clients that have an active or completed trade
+  const activeTradeClients = clients.filter((c) => 
+    c.status === TRADE_STATUSES.WAITING_FOR_USER || 
+    c.status === TRADE_STATUSES.USER_CONFIRMED ||
+    c.status === TRADE_STATUSES.EXECUTED
+  );
 
-  const handleAccept = () => {
-    updateClientTrade(pendingClient.id, TRADE_STATUSES.USER_CONFIRMED);
+  const handleAccept = (client) => {
+    updateClientTrade(client.id, TRADE_STATUSES.USER_CONFIRMED);
   };
 
-  const handleReject = () => {
-    updateClientTrade(pendingClient.id, TRADE_STATUSES.IDLE);
+  const handleReject = (client) => {
+    updateClientTrade(client.id, TRADE_STATUSES.IDLE);
   };
 
   return (
@@ -188,10 +213,10 @@ export default function WhatsAppSimulator() {
                 <span className="text-sm font-semibold text-white truncate leading-tight">
                   Krijuna Research
                 </span>
-                <VerifiedIcon />
+                <VerifiedIcon color="white" />
               </div>
               <p className="text-[10px] text-white/70 leading-tight mt-0.5">
-                {pendingClient ? "online" : "tap here for contact info"}
+                {activeTradeClients.length > 0 ? "online" : "tap here for contact info"}
               </p>
             </div>
 
@@ -220,12 +245,15 @@ export default function WhatsAppSimulator() {
               </span>
             </div>
 
-            {pendingClient ? (
-              <TradeBubble
-                client={pendingClient}
-                onAccept={handleAccept}
-                onReject={handleReject}
-              />
+            {activeTradeClients.length > 0 ? (
+              activeTradeClients.map(client => (
+                <TradeBubble
+                  key={client.id}
+                  client={client}
+                  onAccept={handleAccept}
+                  onReject={handleReject}
+                />
+              ))
             ) : (
               <BlankChat />
             )}

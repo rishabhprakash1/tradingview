@@ -230,7 +230,7 @@ export default function TraderDashboard() {
    */
   const handleExecuteTrade = (client) => {
     alert(`Trade executed successfully!`);
-    updateClientTrade(client.id, TRADE_STATUSES.IDLE);
+    updateClientTrade(client.id, TRADE_STATUSES.EXECUTED);
   };
 
   return (

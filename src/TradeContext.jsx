@@ -49,7 +49,8 @@ export function TradeProvider({ children }) {
       prevClients.map((client) => {
         if (client.id !== clientId) return client;
 
-        // When resetting to idle, always clear tradeDetails
+        // When resetting to idle, always clear tradeDetails. 
+        // For waiting/confirmed/executed, keep it.
         const tradeDetails =
           newStatus === TRADE_STATUSES.IDLE
             ? null
