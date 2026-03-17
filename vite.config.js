@@ -13,7 +13,7 @@ export default defineConfig({
   plugins: [react()],
   base: '/',          // root-relative — correct for custom domain deployments
   build: {
-    outDir: 'dist',   // gh-pages deploys this folder
+    outDir: 'docs',   // GitHub Pages can serve from main → /docs
   },
 })
 
